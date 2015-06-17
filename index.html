@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.8.1/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.8.1/mapbox-gl.js'></script>
+<script type="text/javascript" src="bower_components/underscore/underscore-min.js"></script>
+<script type="text/javascript" src="bower_components/jquery/dist/jquery.min.js"></script>
+<script type="text/javascript" src="bower_components/togeojson/togeojson.js"></script>
+<script type="text/javascript" src="bower_components/turf/turf.min.js"></script>
+<script type="text/javascript" src="bower_components/KNreiseAPI/dist/KNreiseAPI.min.js"></script>
+
+<script type="text/javascript">
+    (function () {
+        'use strict';
+
+        //setup mapboxgl map
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYXRsZWZyZW4iLCJhIjoiblVybXMyYyJ9.tFyswxpRSc5XPLeIzeR29A';
+        var map = new mapboxgl.Map({
+            container: 'map', // container id
+            style: 'https://www.mapbox.com/mapbox-gl-styles/styles/outdoors-v7.json', //stylesheet location
+            zoom: 16
+        });
+
+        //create an api
+        var api = new KR.API({
+            cartodb: {
+                apikey: 'e6b96c1e6a71b8b2c6f8dbb611c08da5842f5ff5',
+                user: 'knreise'
+            }
+        });
+
+        var tur = {
+            api: 'utno',
+            id: '2.8158',
+            type: 'gpx'
+        };
+
+        function addGeoJson(geojson) {
+
+            map.addSource('mydata', {
+                type: 'geojson',
+                data: geojson
+            });
+            var layer = {
+                "id": 'mydata',
+                "type": "line",
+                "source": 'mydata',
+                "paint": {
+                   'line-color': '#0000ff',
+                    'line-width': 8
+                }
+            };
+            map.addLayer(layer);
+        }
+
+        function addPoints(points) {
+
+            map.addSource('points', {
+                type: 'geojson',
+                data: points
+            });
+            var layer = {
+                "id": 'points',
+                "type": "symbol",
+                "source": 'points',
+                "interactive": true,
+                "layout": {
+                    "icon-image": "marker-12"
+                },
+                "paint": {
+                   "icon-size": 1.5
+                }
+            };
+            map.addLayer(layer);
+        }
+
+        function iterator(geojson) {
+            var index = -1;
+            var coords = geojson.features[0].geometry.coordinates;
+            return function () {
+                index++;
+                if (index >= coords.length - 1) {
+                    return;
+                } 
+                return {
+                    current: _.clone(coords[index]).reverse(),
+                    bearing: getBearing(coords[index], coords[index + 1])
+                };
+            }
+        }
+
+        function getBearing(point1, point2) {
+            return turf.bearing(
+                turf.point(point1),
+                turf.point(point2)
+            );
+        }
+
+        function show(it) {
+            var points = it();
+            map.setCenter(points.current).setBearing(points.bearing);
+        }
+
+        api.getData(tur, function (geojson) {
+            var it = iterator(geojson);
+            show(it);
+
+            addGeoJson(geojson);
+
+            function move() {
+                var points = it();
+                if (points) {
+                    map.easeTo({
+                        center: points.current,
+                        bearing: points.bearing
+                    });
+                }
+            }
+            map.on('moveend', move);
+            map.on('load', move);
+        });
+
+
+    }());
+</script>
+
+</body>
+</html>
