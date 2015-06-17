@@ -57,30 +57,14 @@
                 "id": 'mydata',
                 "type": "line",
                 "source": 'mydata',
-                "paint": {
-                   'line-color': '#0000ff',
-                    'line-width': 8
-                }
-            };
-            map.addLayer(layer);
-        }
-
-        function addPoints(points) {
-
-            map.addSource('points', {
-                type: 'geojson',
-                data: points
-            });
-            var layer = {
-                "id": 'points',
-                "type": "symbol",
-                "source": 'points',
-                "interactive": true,
-                "layout": {
-                    "icon-image": "marker-12"
+                'layout': {
+                    'line-cap': 'round'
                 },
                 "paint": {
-                   "icon-size": 1.5
+                    'line-color': '#0033ff',
+                    'line-width': 6,
+                    'line-blur': 2,
+                    'line-opacity': 0.6
                 }
             };
             map.addLayer(layer);
@@ -95,7 +79,7 @@
                     return;
                 } 
                 return {
-                    current: _.clone(coords[index]).reverse(),
+                    point: _.clone(coords[index]).reverse(),
                     bearing: getBearing(coords[index], coords[index + 1])
                 };
             }
@@ -110,28 +94,31 @@
 
         function show(it) {
             var points = it();
-            map.setCenter(points.current).setBearing(points.bearing);
+            map.setCenter(points.point).setBearing(points.bearing);
         }
 
-        api.getData(tur, function (geojson) {
-            var it = iterator(geojson);
-            show(it);
-
-            addGeoJson(geojson);
-
-            function move() {
-                var points = it();
-                if (points) {
-                    map.easeTo({
-                        center: points.current,
-                        bearing: points.bearing
-                    });
+        map.on('load', function () {
+            api.getData(tur, function (geojson) {
+                var it = iterator(geojson);
+                show(it);
+                addGeoJson(geojson);
+                function move() {
+                    var points = it();
+                    if (points) {
+                        var bearing = points.bearing;
+                        var options = {
+                            center: points.point
+                        };
+                        if (bearing !== 0) {
+                            options.bearing = bearing;
+                        }
+                        map.easeTo(options);
+                    }
                 }
-            }
-            map.on('moveend', move);
-            map.on('load', move);
+                map.on('moveend', move);
+                move();
+            });
         });
-
 
     }());
 </script>
